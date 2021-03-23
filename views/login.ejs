@@ -1,0 +1,16 @@
+<% include ("head") %>
+
+<h1>Shift File ID's</h1>
+<%- message %>
+Enter the token to shift all ID's.
+<form method="post" action="/login">
+  <p>
+    <label>Token:</label>
+    <input type="text" name="token">
+  </p>
+  <p>
+    <input type="submit" value="Confirm">
+  </p>
+</form>
+
+<% include ("foot") %>
