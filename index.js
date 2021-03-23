@@ -49,7 +49,7 @@ var users = {
   admin: { name: 'admin' }
 };
 
-hash({ password: `${password}` }, function (err, pass, salt, hash) {
+hash({ password: `${token}` }, function (err, pass, salt, hash) {
   if (err) throw err;
   users.admin.salt = salt;
   users.admin.hash = hash;
