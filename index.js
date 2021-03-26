@@ -1,15 +1,22 @@
-var fs = require('fs');
-var express = require('express');
-var hash = require('pbkdf2-password')()
-var path = require('path');
-var session = require('express-session');
+const express = require('express');
+const bodyParser = require('body-parser');
+const path = require('path');
+const formidable = require('formidable');
+const fs = require('fs');
+var url = require('url');
+var router = express.Router();
+const app = express();
+const port = 3040;
+const {fullURL} = require('./config.json');
+// configure middleware
+app.set('port', process.env.port || port); // set express to use this port
+app.set('views', __dirname + '/views'); // set express to look in this folder to render our view
+app.set('view engine', 'ejs'); // configure template engine
+app.use(express.static('uploads'));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json()); // parse form data client
 
-var app = module.exports = express();
-
-const {token} = require('./config.json');
-
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+var message = "Upload a file to get a token or use a token to remove a file."
 
 function generate(n) {
   var add = 1,
@@ -24,118 +31,126 @@ function generate(n) {
   var number = Math.floor(Math.random() * (max - min + 1)) + min;
   
   return ("" + number).substring(add);
-};
-
-
-app.use(express.urlencoded({ extended: false }))
-app.use(session({
-  resave: false, 
-  saveUninitialized: false,
-  secret: 'a very secret secret'
-}));
-
-app.use(function(req, res, next){
-  var err = req.session.error;
-  var msg = req.session.success;
-  delete req.session.error;
-  delete req.session.success;
-  res.locals.message = '';
-  if (err) res.locals.message = '<p class="msg error">' + err + '</p>';
-  if (msg) res.locals.message = '<p class="msg success">' + msg + '</p>';
-  next();
-});
-
-var users = {
-  admin: { name: 'admin' }
-};
-
-hash({ password: `${token}` }, function (err, pass, salt, hash) {
-  if (err) throw err;
-  users.admin.salt = salt;
-  users.admin.hash = hash;
-});
-
-function authenticate(name, pass, fn) {
-  if (!module.parent) console.log('authenticating %s:%s', name, pass);
-  var user = users[name];
-
-  if (!user) return fn(new Error('cannot find user'));
-
-  hash({ password: pass, salt: user.salt }, function (err, pass, salt, hash) {
-    if (err) return fn(err);
-    if (hash === user.hash) return fn(null, user)
-    fn(new Error('invalid password'));
-  });
 }
 
-function restrict(req, res, next) {
-  if (req.session.user) {
-    next();
-  } else {
-    req.session.error = 'Access denied!';
-    res.redirect('/login');
-  }
-}
+let token = `${generate(6)}`
 
-app.get('/', function(req, res){
-  res.redirect('/login');
+//upload file api
+app.post('/uploadfile',upload_file);
+app.get('/', open_index_page);//call for main index page
+
+app.get('/c/:cPath', function(req, res) {
+  res.sendFile(req.params.cPath, { root: "./uploads" });
 });
 
-app.get('/panel', restrict, function(req, res){
-  res.render('panel', { fs: fs });
+
+app.listen(port, () => {
+    console.log(`Server running on port: ${port}`);
 });
 
-app.get('/logout', function(req, res){
-  req.session.destroy(function(){
-    res.redirect('/');
-  });
-});
-
-app.get('/login', function(req, res){
-  res.render('login');
-});
-
-app.post('/login', function(req, res){
-  authenticate("admin", req.body.token, function(err, user){
-    if (user) {
-      req.session.regenerate(function(){
-        req.session.user = user;
-        req.session.success = `Success! File ID's have shifted!`
-        res.redirect('/login');
-        console.log(`${generate(8)}`);
-        
-        fs.readdir('content/PNG', (err, files) => {
-          files.forEach(file => {
-            fs.rename('content/PNG/'+file, 'content/PNG/'+`${generate(8)}`+'.png', function(err) {
-              if ( err ) console.log('ERROR: ' + err);
-            });
+function upload_file(req, res, next){
+   if(req.method == "POST") {
+      // create an incoming form object
+      var form = new formidable.IncomingForm();
+      // specify that we want to allow the user to upload multiple files in a single request
+      form.multiples = true;
+      // store all uploads in the /uploads directory
+      form.uploadDir = path.basename(path.dirname('/uploads/json_files/'))
+      // every time a file has been uploaded successfully,
+      // rename it to it's orignal name
+      form.on('file', function(field, file) {
+        fs.rename(file.path, path.join(form.uploadDir, file.name), function(err){
+            if (err) throw err;
+            //console.log('renamed complete: '+file.name);
+            const file_path = './uploads/'+file.name
+          // create a JSON object
+          const storage = {
+            "filename": file.name,
+            "token": token
+          };
+          newToken = token
+          // convert JSON object to string
+          const data = JSON.stringify(storage);
+          // write JSON string to a file
+          fs.writeFile('./registry/'+newToken+'.txt', file.name, (err) => {
+            if (err) {
+              throw err;
+            }
           });
-        });
-        fs.readdir('content/MP4', (err, files) => {
-          files.forEach(file => {
-            fs.rename('content/MP4/'+file, 'content/MP4/'+`${generate(8)}`+'.mp4', function(err) {
-              if ( err ) console.log('ERROR: ' + err);
-            });
+            message = `Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=/c/${file.name}><b>${fullURL}/c/${file.name}</b></a>`;
           });
+      })
+      function read(file, callback) {
+        fs.readFile(file, 'utf8', function(err, data) {
+          if (err) {
+            console.log(err);
+          }
+          callback(data);
         });
-        fs.readdir('content/GIF', (err, files) => {
-          files.forEach(file => {
-            fs.rename('content/GIF/'+file, 'content/GIF/'+`${generate(8)}`+'.gif', function(err) {
-              if ( err ) console.log('ERROR: ' + err);
-            });
-          });
-        });
-        
-      });
-    } else {
-      req.session.error = 'Authentication failed, please check your '
-        + ' token was entered correctly!'
-      res.redirect('/login');
     }
-  });
-});
+      
+      function success(req, res, next) {
+          next();
+      }
+      
+      app.post('/removetoken', function(req, res) {
+        var token = req.body.token;
+        fs.readFile('./registry/'+token+'.txt', 'utf8' , (err, data) => {
+          if (err) {
+            console.error(err)
+            return
+          }
+          var output = read('./registry/'+token+'.txt', function(data) {
+            fs.unlink('./uploads/'+data, (err) => {
+              console.log(data)
+              if (err) {
+                console.error(err)
+                return
+              }})
+            res.send(`File associated with <b>${token}</b> has been deleted!`);
+          })
+          fs.unlink('./registry/'+token+'.txt', (err) => {
+            if (err) {
+              console.error(err)
+              return
+            }
+          })
+          });
+        });
+      
+/*
+      app.post('/removetoken', function(req, res, next){
+        if(req.method == "POST") {
+      form.on('file', function(field, file) {
+        fs.rename(file.path, path.join(form.uploadDir, file.name), function(err){
+          if (err) throw err;
+          fs.readFile('./registry/'+req.body.token+'.txt', 'utf8' , (err, data) => {
+            if (err) {
+              throw err;
+            }})})})
+        }});
+*/
+      
+      // log any errors that occur
+      form.on('error', function(err) {
+          console.log('An error has occurred: \n' + err);
+      });
+      // once all the files have been uploaded, send a response to the client
+      form.on('end', function() {
+           //res.end('success');
+           res.statusMessage = "Uploaded";
+           res.statusCode = 200;
+           res.redirect('/')
+           res.end()
+      });
+      // parse the incoming request containing the form data
+      form.parse(req);
+    }
+}
 
-if (!module.parent) {
-  app.listen(3000);
-  console.log('Express started on port 3000');
+function open_index_page(req, res, next){
+
+  if(req.method == "GET"){
+    res.render('index', {message: message});
+   }
 }
