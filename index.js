@@ -3,19 +3,20 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const formidable = require('formidable');
 const fs = require('fs');
-var session = require('express-session');
-var mysql = require('mysql');
-var mysql = require('mysql');
+var url = require('url');
+var router = express.Router();
 const app = express();
 const port = 3040;
+const {fullURL} = require('./config.json');
 // configure middleware
 app.set('port', process.env.port || port); // set express to use this port
 app.set('views', __dirname + '/views'); // set express to look in this folder to render our view
 app.set('view engine', 'ejs'); // configure template engine
+app.use(express.static('uploads'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // parse form data client
-app.use(express.static(path.join(__dirname, 'public'))); // configure express to use public folder
-// set the app to listen on the port
+
+var message = "Upload a file to get a token or use a token to remove a file."
 
 function generate(n) {
   var add = 1,
@@ -37,6 +38,11 @@ let token = `${generate(6)}`
 //upload file api
 app.post('/uploadfile',upload_file);
 app.get('/', open_index_page);//call for main index page
+
+app.get('/c/:cPath', function(req, res) {
+  res.sendFile(req.params.cPath, { root: "./uploads" });
+});
+
 
 app.listen(port, () => {
     console.log(`Server running on port: ${port}`);
@@ -62,18 +68,18 @@ function upload_file(req, res, next){
             "filename": file.name,
             "token": token
           };
+          newToken = token
           // convert JSON object to string
           const data = JSON.stringify(storage);
           // write JSON string to a file
-          fs.writeFile('./registry/'+token+'.txt', file.name, (err) => {
+          fs.writeFile('./registry/'+newToken+'.txt', file.name, (err) => {
             if (err) {
               throw err;
             }
-            console.log("Item's data is saved.");
           });
+            message = `Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=/c/${file.name}><b>${fullURL}/c/${file.name}</b></a>`;
           });
-          });
-      
+      })
       function read(file, callback) {
         fs.readFile(file, 'utf8', function(err, data) {
           if (err) {
@@ -81,6 +87,10 @@ function upload_file(req, res, next){
           }
           callback(data);
         });
+    }
+      
+      function success(req, res, next) {
+          next();
       }
       
       app.post('/removetoken', function(req, res) {
@@ -97,18 +107,16 @@ function upload_file(req, res, next){
                 console.error(err)
                 return
               }})
+            res.send(`File associated with <b>${token}</b> has been deleted!`);
           })
           fs.unlink('./registry/'+token+'.txt', (err) => {
             if (err) {
               console.error(err)
               return
             }
-            console.log(`${token} has been deleted!`);
           })
           });
-        res.redirect('back');
-
-      });
+        });
       
 /*
       app.post('/removetoken', function(req, res, next){
@@ -143,7 +151,6 @@ function upload_file(req, res, next){
 function open_index_page(req, res, next){
 
   if(req.method == "GET"){
-       res.render('index.ejs');
+    res.render('index', {message: message});
    }
 }
-
