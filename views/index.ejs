@@ -1,0 +1,26 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LogStop</title>
+</head>
+<body>
+
+<div class="container col-sm-12" id="choose-files" oncopy="return false" oncut="return false" onpaste="return false">
+  <div class="row">
+    <form action="/uploadfile" method="post" enctype="multipart/form-data">
+           <b>Upload File:</b> <input type="file" name="uploads" id="uploads"
+           multiple/>
+           <input class="btn btn-primary" type="submit" style="border-radius: 4px;" name="uploadfiles" value="Upload">
+       </form>
+    <form action="/removetoken" method="post">
+      <div>
+        <label><b>Token for Removal:</b></label>
+        <input type="text" name="token"/>
+      </div>
+      <div><input type="submit" value="Remove"/></div>
+    </form>
+  </div>
+</div>
+
+</body>
+</html>
