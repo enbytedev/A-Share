@@ -6,17 +6,19 @@ const fs = require('fs');
 var url = require('url');
 var router = express.Router();
 const app = express();
-const port = 3040;
+const port = 80;
 const {fullURL} = require('./config.json');
 // configure middleware
+app.use(function(req, res, next){
+  res.locals.message = 'Upload a file to get a token or use a token to remove a file.';
+  next();
+});
 app.set('port', process.env.port || port); // set express to use this port
 app.set('views', __dirname + '/views'); // set express to look in this folder to render our view
 app.set('view engine', 'ejs'); // configure template engine
 app.use(express.static('uploads'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json()); // parse form data client
-
-var message = "Upload a file to get a token or use a token to remove a file."
 
 function generate(n) {
   var add = 1,
@@ -44,12 +46,14 @@ app.get('/c/:cPath', function(req, res) {
 });
 
 
+
 app.listen(port, () => {
     console.log(`Server running on port: ${port}`);
 });
 
 function upload_file(req, res, next){
    if(req.method == "POST") {
+      newToken = token
       // create an incoming form object
       var form = new formidable.IncomingForm();
       // specify that we want to allow the user to upload multiple files in a single request
@@ -66,9 +70,8 @@ function upload_file(req, res, next){
           // create a JSON object
           const storage = {
             "filename": file.name,
-            "token": token
+            "token": newToken
           };
-          newToken = token
           // convert JSON object to string
           const data = JSON.stringify(storage);
           // write JSON string to a file
@@ -77,8 +80,11 @@ function upload_file(req, res, next){
               throw err;
             }
           });
-            message = `Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=/c/${file.name}><b>${fullURL}/c/${file.name}</b></a>`;
           });
+        form.on('end', function() {
+          //res.end('success');
+          res.send(`Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=${fullURL}/c/${file.name}><b>${fullURL}/c/${file.name}</b></a>`);
+        });
       })
       function read(file, callback) {
         fs.readFile(file, 'utf8', function(err, data) {
@@ -107,7 +113,7 @@ function upload_file(req, res, next){
                 console.error(err)
                 return
               }})
-            res.send(`File associated with <b>${token}</b> has been deleted!`);
+            return res.send(`File associated with <b>${token}</b> has been deleted!`);
           })
           fs.unlink('./registry/'+token+'.txt', (err) => {
             if (err) {
@@ -136,13 +142,7 @@ function upload_file(req, res, next){
           console.log('An error has occurred: \n' + err);
       });
       // once all the files have been uploaded, send a response to the client
-      form.on('end', function() {
-           //res.end('success');
-           res.statusMessage = "Uploaded";
-           res.statusCode = 200;
-           res.redirect('/')
-           res.end()
-      });
+
       // parse the incoming request containing the form data
       form.parse(req);
     }
@@ -151,6 +151,6 @@ function upload_file(req, res, next){
 function open_index_page(req, res, next){
 
   if(req.method == "GET"){
-    res.render('index', {message: message});
+    res.render('index', {message: res.locals.message});
    }
 }
