@@ -35,8 +35,6 @@ function generate(n) {
   return ("" + number).substring(add);
 }
 
-let token = `${generate(6)}`
-
 //upload file api
 app.post('/uploadfile',upload_file);
 app.get('/', open_index_page);//call for main index page
@@ -53,11 +51,11 @@ app.listen(port, () => {
 
 function upload_file(req, res, next){
    if(req.method == "POST") {
-      newToken = token
+      var newToken = `${generate(6)}`
       // create an incoming form object
       var form = new formidable.IncomingForm();
       // specify that we want to allow the user to upload multiple files in a single request
-      form.multiples = true;
+      form.multiples = false;
       // store all uploads in the /uploads directory
       form.uploadDir = path.basename(path.dirname('/uploads/json_files/'))
       // every time a file has been uploaded successfully,
