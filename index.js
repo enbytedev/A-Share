@@ -52,6 +52,7 @@ app.listen(port, () => {
 function upload_file(req, res, next){
    if(req.method == "POST") {
       var newToken = `${generate(6)}`
+      var fileDisc = `${generate(4)}`
       // create an incoming form object
       var form = new formidable.IncomingForm();
       // specify that we want to allow the user to upload multiple files in a single request
@@ -63,9 +64,11 @@ function upload_file(req, res, next){
       form.on('file', function(field, file) {
         fs.rename(file.path, path.join(form.uploadDir, file.name), function(err){
             if (err) throw err;
-            //console.log('renamed complete: '+file.name);
             const file_path = './uploads/'+file.name
-          // create a JSON object
+            
+          fs.rename(`./uploads/${file.name}`, `./uploads/${fileDisc}-${file.name}`, function(err) {
+            if ( err ) console.log('ERROR: ' + err);
+          });
           const storage = {
             "filename": file.name,
             "token": newToken
@@ -73,7 +76,7 @@ function upload_file(req, res, next){
           // convert JSON object to string
           const data = JSON.stringify(storage);
           // write JSON string to a file
-          fs.writeFile('./registry/'+newToken+'.txt', file.name, (err) => {
+          fs.writeFile('./registry/'+newToken+'.txt', fileDisc+'-'+file.name, (err) => {
             if (err) {
               throw err;
             }
@@ -81,7 +84,7 @@ function upload_file(req, res, next){
           });
         form.on('end', function() {
           //res.end('success');
-          res.send(`Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=${fullURL}/c/${file.name}><b>${fullURL}/c/${file.name}</b></a>`);
+          res.send(`Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=${fullURL}/c/${fileDisc}-${file.name}><b>${fullURL}/c/${fileDisc}-${file.name}</b></a>`);
         });
       })
       function read(file, callback) {
@@ -152,3 +155,5 @@ function open_index_page(req, res, next){
     res.render('index', {message: res.locals.message});
    }
 }
+
+
