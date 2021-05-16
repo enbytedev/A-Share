@@ -62,21 +62,22 @@ function upload_file(req, res, next){
       // every time a file has been uploaded successfully,
       // rename it to it's orignal name
       form.on('file', function(field, file) {
-        fs.rename(file.path, path.join(form.uploadDir, file.name), function(err){
+        filename0 = file.name.replace(/ |-/g, '-');
+        fs.rename(file.path, path.join(form.uploadDir, filename0), function(err){
             if (err) throw err;
-            const file_path = './uploads/'+file.name
+            const file_path = './uploads/'+filename0
             
-          fs.rename(`./uploads/${file.name}`, `./uploads/${fileDisc}-${file.name}`, function(err) {
+          fs.rename(`./uploads/${filename0}`, `./uploads/${fileDisc}-${filename0}`, function(err) {
             if ( err ) console.log('ERROR: ' + err);
           });
           const storage = {
-            "filename": file.name,
+            "filename": filename0,
             "token": newToken
           };
           // convert JSON object to string
           const data = JSON.stringify(storage);
           // write JSON string to a file
-          fs.writeFile('./registry/'+newToken+'.txt', fileDisc+'-'+file.name, (err) => {
+          fs.writeFile('./registry/'+newToken+'.txt', fileDisc+'-'+filename0, (err) => {
             if (err) {
               throw err;
             }
@@ -84,7 +85,7 @@ function upload_file(req, res, next){
           });
         form.on('end', function() {
           //res.end('success');
-          res.send(`Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=${fullURL}/c/${fileDisc}-${file.name}><b>${fullURL}/c/${fileDisc}-${file.name}</b></a>`);
+          res.send(`Your file has been uploaded with a token of: <b>${newToken}</b>. Your file is located at: <a href=${fullURL}/c/${fileDisc}-${filename0}><b>${fullURL}/c/${fileDisc}-${filename0}</b></a>`);
         });
       })
       function read(file, callback) {
@@ -129,7 +130,7 @@ function upload_file(req, res, next){
       app.post('/removetoken', function(req, res, next){
         if(req.method == "POST") {
       form.on('file', function(field, file) {
-        fs.rename(file.path, path.join(form.uploadDir, file.name), function(err){
+        fs.rename(file.path, path.join(form.uploadDir, filename0), function(err){
           if (err) throw err;
           fs.readFile('./registry/'+req.body.token+'.txt', 'utf8' , (err, data) => {
             if (err) {
